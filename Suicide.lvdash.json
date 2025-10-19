@@ -1,0 +1,662 @@
+{
+  "datasets": [
+    {
+      "name": "bea3e96b",
+      "displayName": "Evolução Global (A Tendência Histórica)",
+      "queryLines": [
+        "SELECT \r\n",
+        "    year AS ano,\r\n",
+        "    ROUND(global_avg_rate, 2) AS taxa_media_global\r\n",
+        "FROM gold.data_suicide.global_metrics\r\n",
+        "WHERE year >= 2000\r\n",
+        "ORDER BY year;"
+      ]
+    },
+    {
+      "name": "17423295",
+      "displayName": "A Hipótese Central (Suicídio vs. Tratamento de Drogas)",
+      "queryLines": [
+        "SELECT \r\n",
+        "    s.country_name AS pais,\r\n",
+        "    s.year AS ano,\r\n",
+        "    ROUND(s.suicide_rate, 2) AS taxa_suicidio,\r\n",
+        "    ROUND(s.treatment_coverage, 2) AS cobertura_tratamento_drogas,\r\n",
+        "    CASE\r\n",
+        "        WHEN s.hdi >= 0.8 THEN 'Very High'\r\n",
+        "        WHEN s.hdi >= 0.7 THEN 'High'\r\n",
+        "        WHEN s.hdi >= 0.55 THEN 'Medium'\r\n",
+        "        ELSE 'Low'\r\n",
+        "    END AS categoria_idh\r\n",
+        "FROM gold.data_suicide.multifactor_correlation s\r\n",
+        "WHERE s.treatment_coverage IS NOT NULL\r\n",
+        "  AND s.year = (\r\n",
+        "      SELECT MAX(year)\r\n",
+        "      FROM gold.data_suicide.multifactor_correlation\r\n",
+        "      WHERE treatment_coverage IS NOT NULL\r\n",
+        "  );"
+      ]
+    },
+    {
+      "name": "00736fae",
+      "displayName": "Disparidade de Gênero (O \"Quem\")",
+      "queryLines": [
+        "SELECT \r\n",
+        "    country_name AS pais,\r\n",
+        "    ROUND(male_rate, 2) AS taxa_masculina,\r\n",
+        "    ROUND(female_rate, 2) AS taxa_feminina,\r\n",
+        "    ROUND(gender_ratio, 2) AS razao_homem_mulher\r\n",
+        "FROM gold.data_suicide.gender_disparity_analysis\r\n",
+        "WHERE year = (SELECT MAX(year) FROM gold.data_suicide.gender_disparity_analysis)\r\n",
+        "ORDER BY razao_homem_mulher DESC\r\n",
+        "LIMIT 10;"
+      ]
+    },
+    {
+      "name": "77406102",
+      "displayName": "Hotspots de Risco (O \"Onde\")",
+      "queryLines": [
+        "SELECT \r\n",
+        "    country_name AS pais,\r\n",
+        "    year AS ano,\r\n",
+        "    ROUND(suicide_rate, 2) AS taxa_atual,\r\n",
+        "    ROUND(rate_change_pct, 2) AS mudanca_1_ano_pct,\r\n",
+        "    alert_type AS tipo_alerta\r\n",
+        "FROM gold.data_suicide.significant_changes_alerts\r\n",
+        "WHERE year = (SELECT MAX(year) FROM gold.data_suicide.significant_changes_alerts)\r\n",
+        "  AND alert_type LIKE '%Increase%' -- Focar em quem está piorando\r\n",
+        "ORDER BY mudanca_1_ano_pct DESC\r\n",
+        "LIMIT 15;"
+      ]
+    },
+    {
+      "name": "70c1a59e",
+      "displayName": "Untitled dataset",
+      "queryLines": [
+        "-- 1. Taxa do Brasil\r\n",
+        "(\r\n",
+        "SELECT \r\n",
+        "    year AS ano,\r\n",
+        "    'Brasil' AS entidade,\r\n",
+        "    ROUND(suicide_rate, 2) AS taxa\r\n",
+        "FROM gold.data_suicide.suicide_hdi_analysis\r\n",
+        "WHERE country_code = 'BRA'\r\n",
+        "  AND year >= 2000\r\n",
+        ")\r\n",
+        "\r\n",
+        "UNION ALL\r\n",
+        "\r\n",
+        "-- 2. Taxa dos EUA\r\n",
+        "(\r\n",
+        "SELECT \r\n",
+        "    year AS ano,\r\n",
+        "    'EUA' AS entidade,\r\n",
+        "    ROUND(suicide_rate, 2) AS taxa\r\n",
+        "FROM gold.data_suicide.suicide_hdi_analysis\r\n",
+        "WHERE country_code = 'USA'\r\n",
+        "  AND year >= 2000\r\n",
+        ")\r\n",
+        "\r\n",
+        "UNION ALL\r\n",
+        "\r\n",
+        "-- 3. Média Global\r\n",
+        "(\r\n",
+        "SELECT \r\n",
+        "    year AS ano,\r\n",
+        "    'Média Global' AS entidade,\r\n",
+        "    ROUND(global_avg_rate, 2) AS taxa\r\n",
+        "FROM gold.data_suicide.global_metrics\r\n",
+        "WHERE year >= 2000\r\n",
+        ")\r\n",
+        "\r\n",
+        "UNION ALL\r\n",
+        "\r\n",
+        "-- 4. Média Américas\r\n",
+        "(\r\n",
+        "SELECT DISTINCT -- Usar DISTINCT para pegar a média regional apenas uma vez por ano\r\n",
+        "    year AS ano,\r\n",
+        "    'Média Américas' AS entidade,\r\n",
+        "    ROUND(regional_avg_rate, 2) AS taxa\r\n",
+        "FROM gold.data_suicide.country_rankings\r\n",
+        "WHERE region = 'Americas' -- Filtro pela região\r\n",
+        "  AND year >= 2000\r\n",
+        ")\r\n",
+        "\r\n",
+        "UNION ALL\r\n",
+        "\r\n",
+        "-- 5. Média BRICS\r\n",
+        "(\r\n",
+        "SELECT \r\n",
+        "    year AS ano,\r\n",
+        "    'Média BRICS' AS entidade,\r\n",
+        "    ROUND(AVG(suicide_rate), 2) AS taxa\r\n",
+        "FROM gold.data_suicide.suicide_hdi_analysis\r\n",
+        "WHERE country_code IN ('BRA', 'RUS', 'IND', 'CHN', 'ZAF') -- Países BRICS\r\n",
+        "  AND year >= 2000\r\n",
+        "GROUP BY year\r\n",
+        ")\r\n",
+        "\r\n",
+        "ORDER BY ano, entidade;"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "1714b453",
+      "displayName": "Dash",
+      "layout": [
+        {
+          "widget": {
+            "name": "42f1565d",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "bea3e96b",
+                  "fields": [
+                    {
+                      "name": "ano",
+                      "expression": "`ano`"
+                    },
+                    {
+                      "name": "taxa_media_global",
+                      "expression": "`taxa_media_global`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "ano",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "taxa_media_global",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "title": "Taxa Média Global de Suicídio (2000-Presente)",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "O problema está melhorando ou piorando ao longo do tempo? A taxa global média de suicídio está subindo ou descendo nas últimas duas décadas?"
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 6,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "881dd692",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "17423295",
+                  "fields": [
+                    {
+                      "name": "pais",
+                      "expression": "`pais`"
+                    },
+                    {
+                      "name": "cobertura_tratamento_drogas",
+                      "expression": "`cobertura_tratamento_drogas`"
+                    },
+                    {
+                      "name": "taxa_suicidio",
+                      "expression": "`taxa_suicidio`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "cobertura_tratamento_drogas",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "taxa_suicidio",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "pais"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Suicídio vs. Tratamento de Drogas",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Países com maior cobertura de tratamento para uso de substâncias têm taxas de suicídio menores? O investimento em tratamento de drogas parece ter correlação com a redução de suicídios?"
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "4afa879f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "00736fae",
+                  "fields": [
+                    {
+                      "name": "pais",
+                      "expression": "`pais`"
+                    },
+                    {
+                      "name": "taxa_feminina",
+                      "expression": "`taxa_feminina`"
+                    },
+                    {
+                      "name": "taxa_masculina",
+                      "expression": "`taxa_masculina`"
+                    },
+                    {
+                      "name": "avg(razao_homem_mulher)",
+                      "expression": "AVG(`razao_homem_mulher`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pais",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(razao_homem_mulher)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "pais",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Bahamas",
+                        "color": "#806800"
+                      },
+                      {
+                        "value": "Brunei",
+                        "color": "#997D00"
+                      },
+                      {
+                        "value": "Georgia",
+                        "color": "#FFF4B8"
+                      },
+                      {
+                        "value": "Jamaica",
+                        "color": "#999900"
+                      },
+                      {
+                        "value": "Kuwait",
+                        "color": "#CCA700"
+                      },
+                      {
+                        "value": "Maldives",
+                        "color": "#E6BD00"
+                      },
+                      {
+                        "value": "Qatar",
+                        "color": "#FFD100"
+                      },
+                      {
+                        "value": "Saint Lucia",
+                        "color": "#FFDD3F"
+                      },
+                      {
+                        "value": "United Arab Emirates",
+                        "color": "#FFE875"
+                      },
+                      {
+                        "value": "Venezuela",
+                        "color": "#FFFDEA"
+                      }
+                    ]
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "taxa_feminina"
+                  },
+                  {
+                    "fieldName": "taxa_masculina"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Disparidade de Gênero (O \"Quem\")",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Onde a disparidade de suicídio entre homens e mulheres é mais extrema? Quais países têm as maiores diferenças?"
+              },
+              "mark": {
+                "layout": "stack"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "1ee335e3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "77406102",
+                  "fields": [
+                    {
+                      "name": "pais",
+                      "expression": "`pais`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "choropleth-map",
+              "encodings": {
+                "region": {
+                  "regionType": "mapbox-v4-admin",
+                  "admin0": {
+                    "fieldName": "pais",
+                    "type": "field",
+                    "geographicRole": "admin0-name"
+                  }
+                }
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Hotspots de Risco (O \"Onde\")",
+                "showDescription": true,
+                "description": "Quais países precisam de atenção imediata? Onde as taxas não são apenas altas, mas estão crescendo rapidamente?"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "78a5e719",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "70c1a59e",
+                  "fields": [
+                    {
+                      "name": "entidade",
+                      "expression": "`entidade`"
+                    },
+                    {
+                      "name": "ano",
+                      "expression": "`ano`"
+                    },
+                    {
+                      "name": "avg(taxa)",
+                      "expression": "AVG(`taxa`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "ano",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(taxa)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "entidade",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Brasil",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "Média Américas",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "EUA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Benchmark do Brasil (2000-Presente)",
+                "showDescription": true,
+                "description": "A taxa de suicídio no Brasil está crescendo ou diminuindo em relação aos seus pares (BRICS), à sua região (Américas), à média global e a uma economia desenvolvida (EUA)? Estamos nos movendo com o mundo ou em uma direção diferente?"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "genieSpace": {
+      "isEnabled": false
+    }
+  }
+}
