@@ -168,17 +168,6 @@ O dashboard apresenta 5 visualizações principais para análise do fenômeno gl
 
 ---
 
-## 🎯 Próximos Passos
-
-- [ ] Integrar dados de gasto em saúde (World Bank API)
-- [ ] Adicionar dados de saúde mental (OECD SDMX API)
-- [ ] Implementar modelos preditivos (ML)
-- [ ] Criar análise de série temporal com Prophet
-- [ ] Expandir dashboard com mais visualizações interativas
-- [ ] Automatizar ingestão incremental (jobs scheduling)
-
----
-
 ## 📝 Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
