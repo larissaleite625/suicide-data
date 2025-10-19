@@ -180,6 +180,3 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull r
 
 Este projeto trabalha com dados públicos agregados sobre saúde mental. Os dados são utilizados exclusivamente para fins de análise estatística e pesquisa em saúde pública, respeitando todas as diretrizes de privacidade e ética em pesquisa.
 
----
-
-**Desenvolvido com Databricks + PySpark** 🚀
